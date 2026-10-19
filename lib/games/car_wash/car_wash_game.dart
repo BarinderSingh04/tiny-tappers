@@ -1,13 +1,17 @@
+import 'dart:ui';
+
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/animation.dart';
 
+import '../../kit/art_book.dart';
 import '../../kit/audio_service.dart';
 import '../../kit/confetti.dart';
 import '../../kit/draggable_item.dart';
 import '../../kit/idle_hint.dart';
 import '../../kit/palette.dart';
+import '../../kit/rive_art.dart';
 import '../../kit/rub_surface.dart';
 import '../../kit/step_sequencer.dart';
 import 'car.dart';
@@ -41,6 +45,10 @@ class CarWashGame extends FlameGame {
 
   final audio = AudioService.instance;
 
+  /// Real art when it has been added; drawn art fills every gap.
+  late final ArtBook art;
+  RiveCharacter? _riveCar;
+
   late Car car;
   late final IdleHint hint;
   late final StageHud hud;
@@ -52,10 +60,21 @@ class CarWashGame extends FlameGame {
   @override
   Future<void> onLoad() async {
     camera.viewfinder.anchor = Anchor.topLeft;
+    art = await ArtBook.load('carwash', images);
+    _riveCar = await art.character('car');
     hint = IdleHint()..priority = 200;
     toolCursor = ToolCursor()..priority = 150;
+    for (final tool in WashTool.values) {
+      final sprite = art.sprite('tool_${tool.name}');
+      if (sprite != null) toolCursor.sprites[tool] = sprite;
+    }
     hud = StageHud(position: Vector2(640, 60))..priority = 50;
-    await world.addAll([Backdrop(), hud, hint, toolCursor]);
+    await world.addAll([
+      Backdrop(image: art.background),
+      hud,
+      hint,
+      toolCursor,
+    ]);
     _startRound();
   }
 
@@ -67,8 +86,12 @@ class CarWashGame extends FlameGame {
 
   void _startRound() {
     hud.done = 0;
-    car = Car(bodyColor: _carColors[round % _carColors.length])
-      ..position = Vector2(-400, carSpot.y);
+    car = Car(
+      bodyColor: _carColors[round % _carColors.length],
+      art: art,
+      variant: round,
+      rive: _riveCar,
+    )..position = Vector2(-400, carSpot.y);
     world.add(car);
     car.add(
       MoveToEffect(
@@ -81,19 +104,19 @@ class CarWashGame extends FlameGame {
               (done) => _rubStep(
                 done,
                 WashTool.sponge,
-                Grime.mud,
+                _look('mud', Grime.mud),
                 AudioService.scrub,
               ),
               (done) => _rubStep(
                 done,
                 WashTool.hose,
-                Grime.foam,
+                _look('foam', Grime.foam),
                 AudioService.splash,
               ),
               (done) => _rubStep(
                 done,
                 WashTool.towel,
-                Grime.drops,
+                _look('drop', Grime.drops),
                 AudioService.squeak,
               ),
               _stickerStep,
@@ -103,6 +126,12 @@ class CarWashGame extends FlameGame {
         },
       ),
     );
+  }
+
+  /// Artist sprites named `<name>_1`, `<name>_2`, … or the drawn [fallback].
+  CellPainter _look(String name, CellPainter fallback) {
+    final sprites = art.numbered(name);
+    return sprites.isEmpty ? fallback : Grime.sprites(sprites);
   }
 
   void _rubStep(
@@ -115,7 +144,7 @@ class CarWashGame extends FlameGame {
     late final RubSurface surface;
     surface = RubSurface(
       size: car.size,
-      mask: Car.isOnCar,
+      mask: car.isOnCar,
       paintCell: look,
       seed: round * 10 + tool.index,
       onRub: (point) {
@@ -140,7 +169,9 @@ class CarWashGame extends FlameGame {
             spread: 700,
           ),
         );
-        car.add(_hop());
+        car
+          ..cheer()
+          ..add(_hop());
         surface.removeFromParent();
         done();
       },
@@ -195,20 +226,31 @@ class CarWashGame extends FlameGame {
 
   void _stickerStep(VoidCallback done) {
     const needed = 3;
-    final drawers = [Stickers.star, Stickers.heart, Stickers.flower];
+    final drawers = <void Function(Canvas, Vector2, Color)>[
+      Stickers.star,
+      Stickers.heart,
+      Stickers.flower,
+    ];
+    final artStickers = art.numbered('sticker');
     final shelf = StickerShelf();
     final tray = <DraggableItem>[];
     var placed = 0;
 
     for (var i = 0; i < 5; i++) {
       final color = _stickerColors[i];
-      final draw = drawers[i % drawers.length];
+      final drawn = drawers[i % drawers.length];
+      final sprite = artStickers.isEmpty
+          ? null
+          : artStickers[i % artStickers.length];
+      void draw(Canvas canvas, Vector2 size, Color color) => sprite == null
+          ? drawn(canvas, size, color)
+          : sprite.render(canvas, size: size);
       tray.add(
         DraggableItem(
           size: Vector2.all(96),
           position: Vector2(240 + i * 200.0, 642),
           draw: (canvas, size) => draw(canvas, size, color),
-          accepts: (center) => Car.isOnCar(car.absoluteToLocal(center)),
+          accepts: (center) => car.isOnCar(car.absoluteToLocal(center)),
           onPickUp: () {
             hint.poke();
             audio.play(AudioService.squeak);

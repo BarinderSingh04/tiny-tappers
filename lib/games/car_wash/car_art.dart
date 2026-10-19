@@ -38,6 +38,7 @@ abstract final class CarArt {
     double wheelAngle = 0,
     double blink = 0,
     bool shadow = true,
+    bool wheels = true,
   }) {
     final outline = shade(color, -0.25);
 
@@ -143,10 +144,15 @@ abstract final class CarArt {
         chrome,
       );
 
-    for (final x in const [140.0, 420.0]) {
-      _wheel(canvas, Offset(x, 250), wheelAngle);
+    if (!wheels) return;
+    for (final x in wheelCenters) {
+      wheel(canvas, Offset(x, 250), wheelAngle);
     }
   }
+
+  /// Wheel hub positions along the car, at y = 250.
+  static const wheelCenters = [140.0, 420.0];
+  static const wheelRadius = 52.0;
 
   static void _window(Canvas canvas, RRect r, Color frame) {
     canvas.save();
@@ -209,7 +215,7 @@ abstract final class CarArt {
       );
   }
 
-  static void _wheel(Canvas canvas, Offset c, double angle) {
+  static void wheel(Canvas canvas, Offset c, double angle) {
     canvas
       ..drawCircle(c, 50, Paint()..color = const Color(0xFF26283A))
       ..drawCircle(

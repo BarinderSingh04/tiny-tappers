@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   flame: ^1.38.2
   flame_audio: ^2.12.2
+  flame_rive: ^1.11.2
+  flame_texturepacker: ^5.1.2
 
 dev_dependencies:
   flutter_test:
@@ -61,6 +63,8 @@ flutter:
 
   assets:
     - assets/audio/
+    - assets/images/
+    - assets/rive/
 
   fonts:
     - family: Fredoka

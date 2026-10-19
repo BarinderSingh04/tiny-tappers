@@ -3,13 +3,18 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 
+import '../../kit/art_book.dart';
 import '../../kit/palette.dart';
 import '../../kit/rub_grid.dart';
 import '../../kit/scenery.dart';
 
 /// Sky, hills and the car wash building behind the car.
+///
+/// An artist's `carwash_bg.png` replaces all of it when present.
 class Backdrop extends PositionComponent {
-  Backdrop() : super(size: Vector2(1280, 720), priority: -10);
+  Backdrop({this.image}) : super(size: Vector2(1280, 720), priority: -10);
+
+  final Sprite? image;
 
   double _time = 0;
 
@@ -34,6 +39,11 @@ class Backdrop extends PositionComponent {
 
   @override
   void render(Canvas canvas) {
+    final image = this.image;
+    if (image != null) {
+      image.render(canvas, size: size);
+      return;
+    }
     Scenery.sky(canvas, _size);
     Scenery.sun(canvas, const Offset(1160, 105), 52);
     final drift = (_time * 12) % 1500;
@@ -306,6 +316,9 @@ class ToolCursor extends PositionComponent {
   bool visible = false;
   double _time = 0;
 
+  /// Artist sprites (`tool_sponge`, `tool_hose`, `tool_towel`) by tool.
+  final Map<WashTool, Sprite> sprites = {};
+
   void showAt(Vector2 at) {
     position = at + Vector2(0, -40);
     visible = true;
@@ -320,6 +333,12 @@ class ToolCursor extends PositionComponent {
     canvas.save();
     canvas.translate(65, 55);
     canvas.rotate(sin(_time * 18) * 0.08);
+    final sprite = sprites[tool];
+    if (sprite != null) {
+      sprite.render(canvas, size: gameSize(sprite), anchor: Anchor.center);
+      canvas.restore();
+      return;
+    }
     switch (tool) {
       case WashTool.sponge:
         final r = RRect.fromRectAndRadius(
@@ -412,6 +431,23 @@ class ToolCursor extends PositionComponent {
 
 /// How each wash stage's covering layer looks.
 abstract final class Grime {
+  /// Draws artist sprites (`mud_1`, `mud_2`, …) instead of the coded blobs,
+  /// each about [radius] × 2 game units across before random scaling.
+  static void Function(Canvas, Vector2, RubCell) sprites(
+    List<Sprite> variants, {
+    double radius = 17,
+  }) {
+    return (canvas, c, cell) {
+      final sprite = variants[cell.variant % variants.length];
+      sprite.render(
+        canvas,
+        position: c,
+        size: Vector2.all(radius * 2 * cell.scale),
+        anchor: Anchor.center,
+      );
+    };
+  }
+
   static final _mud = [
     const Color(0xFF8B5A2B),
     const Color(0xFF7A4B22),

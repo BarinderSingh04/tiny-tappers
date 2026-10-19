@@ -23,13 +23,13 @@ class CarWashGame extends FlameGame {
         camera: CameraComponent.withFixedResolution(width: 1280, height: 720),
       );
 
-  static final carSpot = Vector2(640, 380);
+  static final carSpot = Vector2(640, 395);
   static const _carColors = [
     KidColors.red,
     KidColors.blue,
     KidColors.orange,
     KidColors.purple,
-    KidColors.pink,
+    KidColors.teal,
   ];
   static const _stickerColors = [
     KidColors.sun,
@@ -43,29 +43,37 @@ class CarWashGame extends FlameGame {
 
   late Car car;
   late final IdleHint hint;
-  late final StageDots dots;
+  late final StageHud hud;
   late final ToolCursor toolCursor;
   int round = 0;
+  double _lastPuff = 0;
+  double _time = 0;
 
   @override
   Future<void> onLoad() async {
     camera.viewfinder.anchor = Anchor.topLeft;
     hint = IdleHint()..priority = 200;
     toolCursor = ToolCursor()..priority = 150;
-    dots = StageDots(count: 4, position: Vector2(640, 50));
-    await world.addAll([Backdrop(), dots, hint, toolCursor]);
+    hud = StageHud(position: Vector2(640, 60))..priority = 50;
+    await world.addAll([Backdrop(), hud, hint, toolCursor]);
     _startRound();
   }
 
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _time += dt;
+  }
+
   void _startRound() {
-    dots.done = 0;
+    hud.done = 0;
     car = Car(bodyColor: _carColors[round % _carColors.length])
       ..position = Vector2(-400, carSpot.y);
     world.add(car);
     car.add(
       MoveToEffect(
         carSpot,
-        EffectController(duration: 1.4, curve: Curves.easeOutCubic),
+        EffectController(duration: 1.6, curve: Curves.easeOutCubic),
         onComplete: () {
           audio.play(AudioService.honk);
           StepSequencer(
@@ -112,15 +120,27 @@ class CarWashGame extends FlameGame {
       seed: round * 10 + tool.index,
       onRub: (point) {
         hint.poke();
-        toolCursor.showAt(car.absolutePositionOf(point));
+        final at = car.absolutePositionOf(point);
+        toolCursor.showAt(at);
         audio.play(sound, minGap: const Duration(milliseconds: 300));
+        _feedback(tool, at);
       },
       onRubEnd: () => toolCursor.visible = false,
       onComplete: () {
         toolCursor.visible = false;
         hint.hide();
-        dots.done++;
+        hud.done++;
         audio.play(AudioService.pop);
+        world.add(
+          puff(
+            carSpot - Vector2(0, 60),
+            colors: [KidColors.white, KidColors.sun],
+            count: 18,
+            radius: 8,
+            spread: 700,
+          ),
+        );
+        car.add(_hop());
         surface.removeFromParent();
         done();
       },
@@ -132,9 +152,51 @@ class CarWashGame extends FlameGame {
     );
   }
 
+  /// Bubbles, splashes or sparkles under the finger, a few times a second.
+  void _feedback(WashTool tool, Vector2 at) {
+    if (_time - _lastPuff < 0.06) return;
+    _lastPuff = _time;
+    world.add(switch (tool) {
+      WashTool.sponge => puff(
+        at,
+        colors: const [KidColors.white, Color(0xFFD6ECFF), Color(0xFFFFD6F0)],
+        velocity: Vector2(0, -90),
+        radius: 11,
+        ring: true,
+      ),
+      WashTool.hose => puff(
+        at,
+        colors: const [Color(0xFF6EC6FF), Color(0xFF4FB3FF)],
+        velocity: Vector2(0, 60),
+        gravity: 500,
+        radius: 6,
+        count: 5,
+        spread: 260,
+      ),
+      WashTool.towel => puff(
+        at,
+        colors: const [KidColors.white, KidColors.sun],
+        radius: 5,
+        spread: 200,
+      ),
+    });
+  }
+
+  Effect _hop() => SequenceEffect([
+    MoveByEffect(
+      Vector2(0, -24),
+      EffectController(duration: 0.14, curve: Curves.easeOut),
+    ),
+    MoveByEffect(
+      Vector2(0, 24),
+      EffectController(duration: 0.18, curve: Curves.bounceOut),
+    ),
+  ]);
+
   void _stickerStep(VoidCallback done) {
     const needed = 3;
     final drawers = [Stickers.star, Stickers.heart, Stickers.flower];
+    final shelf = StickerShelf();
     final tray = <DraggableItem>[];
     var placed = 0;
 
@@ -144,7 +206,7 @@ class CarWashGame extends FlameGame {
       tray.add(
         DraggableItem(
           size: Vector2.all(96),
-          position: Vector2(240 + i * 200.0, 640),
+          position: Vector2(240 + i * 200.0, 642),
           draw: (canvas, size) => draw(canvas, size, color),
           accepts: (center) => Car.isOnCar(car.absoluteToLocal(center)),
           onPickUp: () {
@@ -154,25 +216,38 @@ class CarWashGame extends FlameGame {
           onReturned: () => audio.play(AudioService.boing),
           onDropped: (item, center) {
             audio.play(AudioService.pop);
+            world.add(
+              puff(
+                center,
+                colors: [color, KidColors.white],
+                count: 10,
+                radius: 7,
+                spread: 400,
+              ),
+            );
             item
               ..parent = car
               ..position = car.absoluteToLocal(center)
+              ..priority = 10
               ..scale = Vector2.all(0.8);
             placed++;
             if (placed == needed) {
               for (final left in tray.where((t) => !t.locked)) {
                 left.add(RemoveEffect(delay: 0.1));
               }
+              shelf.add(RemoveEffect(delay: 0.1));
               hint.hide();
-              dots.done++;
+              hud.done++;
               done();
             }
           },
-        ),
+        )..priority = 6,
       );
     }
-    world.addAll(tray);
-    hint.show(Vector2(240, 640), carSpot.clone());
+    world
+      ..add(shelf)
+      ..addAll(tray);
+    hint.show(Vector2(240, 642), carSpot.clone());
   }
 
   void _finishRound() {
@@ -186,10 +261,10 @@ class CarWashGame extends FlameGame {
             EffectController(duration: 0.25, alternate: true, repeatCount: 2),
           ),
           MoveToEffect(
-            Vector2(1700, carSpot.y),
+            Vector2(1750, carSpot.y),
             EffectController(
-              duration: 1.3,
-              startDelay: 1.2,
+              duration: 1.4,
+              startDelay: 1.0,
               curve: Curves.easeInCubic,
             ),
             onComplete: () => audio.play(AudioService.honk),

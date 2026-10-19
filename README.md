@@ -13,6 +13,8 @@ Playful, wordless mini-games for toddlers aged 2 to 5, built with Flutter and Fl
   - `IdleHint`: a pulsing finger that shows what to do after 5 idle seconds.
   - `confettiBurst`, `AudioService` (with a parent mute), `ParentGate`, `HomeButton`, `KidColors`.
 
+The look is shared through `KidColors`, `Scenery` (sky, sun, clouds, hills) and the bundled Fredoka font (SIL Open Font License, see `assets/fonts/OFL.txt`).
+
 All art is drawn in code and the sounds in `assets/audio/` are synthesized placeholders (`python3 tool/make_sounds.py`). Swap both for real assets before release.
 
 ## Run

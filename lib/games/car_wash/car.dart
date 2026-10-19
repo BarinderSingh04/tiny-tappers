@@ -2,82 +2,46 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 
-import '../../kit/palette.dart';
+import 'car_art.dart';
 
-/// A chunky cartoon car drawn in code, so the prototype needs no art files.
-///
-/// Swap [render] for a sprite once the real artwork is ready.
+/// The car in the wash. Spins its wheels as it moves and blinks now and then.
 class Car extends PositionComponent {
   Car({required this.bodyColor})
     : super(size: Vector2(560, 310), anchor: Anchor.center);
 
   Color bodyColor;
 
-  static final _body = RRect.fromLTRBR(
-    0,
-    110,
-    560,
-    250,
-    const Radius.circular(60),
-  );
-  static final _cabin = RRect.fromLTRBR(
-    110,
-    20,
-    430,
-    140,
-    const Radius.circular(55),
-  );
-
   /// Whether [point] (local coordinates) is on the car's paintwork.
-  static bool isOnCar(Vector2 point) {
-    final o = Offset(point.x, point.y);
-    return _body.contains(o) || _cabin.contains(o);
+  static bool isOnCar(Vector2 point) =>
+      CarArt.contains(Offset(point.x, point.y));
+
+  double _wheelAngle = 0;
+  double? _lastX;
+  double _time = 0;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _time += dt;
+    final last = _lastX;
+    if (last != null) _wheelAngle += (position.x - last) / 50;
+    _lastX = position.x;
   }
 
-  final _ink = Paint()..color = KidColors.ink;
-  final _window = Paint()..color = const Color(0xFFCDEBFF);
-  final _hubcap = Paint()..color = const Color(0xFFDDDDDD);
-  final _light = Paint()..color = KidColors.sun;
-  final _outline = Paint()
-    ..color = KidColors.ink
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 8;
+  double get _blink {
+    // A quick blink roughly every 3.5 seconds.
+    final t = _time % 3.5;
+    if (t > 0.18) return 0;
+    return 1 - (t / 0.09 - 1).abs();
+  }
 
   @override
   void render(Canvas canvas) {
-    final paint = Paint()..color = bodyColor;
-    canvas
-      ..drawRRect(_cabin, paint)
-      ..drawRRect(_cabin, _outline)
-      ..drawRRect(_body, paint)
-      ..drawRRect(_body, _outline);
-
-    // Windows with a friendly face in the front one.
-    final back = RRect.fromLTRBR(145, 45, 260, 115, const Radius.circular(24));
-    final front = RRect.fromLTRBR(280, 45, 400, 115, const Radius.circular(24));
-    canvas
-      ..drawRRect(back, _window)
-      ..drawRRect(front, _window)
-      ..drawCircle(const Offset(318, 75), 9, _ink)
-      ..drawCircle(const Offset(362, 75), 9, _ink);
-    final smile = Path()
-      ..moveTo(318, 93)
-      ..quadraticBezierTo(340, 110, 362, 93);
-    canvas.drawPath(
-      smile,
-      Paint()
-        ..color = KidColors.ink
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
-        ..strokeCap = StrokeCap.round,
+    CarArt.paint(
+      canvas,
+      color: bodyColor,
+      wheelAngle: _wheelAngle,
+      blink: _blink,
     );
-
-    // Headlight and wheels.
-    canvas.drawCircle(const Offset(525, 160), 18, _light);
-    for (final x in [140.0, 420.0]) {
-      canvas
-        ..drawCircle(Offset(x, 250), 52, _ink)
-        ..drawCircle(Offset(x, 250), 22, _hubcap);
-    }
   }
 }

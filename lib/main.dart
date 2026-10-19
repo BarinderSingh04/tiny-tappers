@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'hub/hub_screen.dart';
 import 'kit/audio_service.dart';
+import 'kit/palette.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,7 @@ class TinyTappersApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: const Color(0xFF3A86FF),
+        fontFamily: kidFont,
         useMaterial3: true,
       ),
       home: const HubScreen(),

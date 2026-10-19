@@ -20,7 +20,9 @@ void main() {
     await tester.tap(
       find.bySemanticsLabel('Grown-ups: press and hold for settings'),
     );
-    await tester.pumpAndSettle();
+    // The playable tile bobs forever, so settle by time instead.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('For grown-ups'), findsNothing);
   });
 
@@ -35,7 +37,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     await gesture.up();
-    await tester.pumpAndSettle();
+    // The playable tile bobs forever, so settle by time instead.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('For grown-ups'), findsOneWidget);
   });
 }

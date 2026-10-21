@@ -6,6 +6,7 @@
 Reads art/<game>/*.png (and *.svg when cairosvg is installed) and writes:
   assets/images/<game>.png + <game>.atlas   all sprites in one sheet
   assets/images/<game>_bg.png               from art/<game>/bg.png
+  assets/images/<game>_layout.json          from art/<game>/layout.json
 
 Art is drawn at 2x the 1280 x 720 game world. Name files after what they
 are; a trailing number makes a set the game picks from, e.g. mud_1.png,
@@ -69,6 +70,11 @@ def pack(game_dir):
     if background:
         load(background).save(OUT / f"{game}_bg.png", optimize=True)
         print(f"{game}: background {background.name}")
+
+    layout = game_dir / "layout.json"
+    if layout.exists():
+        (OUT / f"{game}_layout.json").write_text(layout.read_text())
+        print(f"{game}: layout.json")
 
     images = {p.stem: load(p) for p in files if p.stem != "bg"}
     if not images:

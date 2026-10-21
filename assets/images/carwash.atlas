@@ -1,0 +1,11 @@
+carwash.png
+size:2248,620
+format:RGBA8888
+filter:Linear,Linear
+repeat:none
+car_body
+bounds:0,0,1120,620
+index:-1
+car_eyes_closed
+bounds:1124,0,1120,620
+index:-1

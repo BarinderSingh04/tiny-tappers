@@ -29,6 +29,9 @@ class Car extends PositionComponent {
   Sprite? _eyesClosed;
   AlphaMask? _mask;
 
+  List<Offset> _wheels = [for (final x in CarArt.wheelCenters) Offset(x, 250)];
+  double _wheelRadius = CarArt.wheelRadius;
+
   double _wheelAngle = 0;
   double? _lastX;
   double _time = 0;
@@ -49,7 +52,24 @@ class Car extends PositionComponent {
       _wheel = art.sprite('car_wheel');
       _eyesClosed = art.sprite('car_eyes_closed');
       _mask = await AlphaMask.fromSprite(body);
+      _readLayout();
     }
+  }
+
+  /// Wheel centres and size from `art/carwash/layout.json`, for car art
+  /// whose proportions differ from the drawn car.
+  void _readLayout() {
+    final car = art.layout['car'];
+    if (car is! Map) return;
+    final wheels = car['wheels'];
+    if (wheels is List) {
+      _wheels = [
+        for (final w in wheels)
+          Offset((w[0] as num).toDouble(), (w[1] as num).toDouble()),
+      ];
+    }
+    final radius = car['wheelRadius'];
+    if (radius is num) _wheelRadius = radius.toDouble();
   }
 
   /// Whether [point] (local coordinates) is on the car's paintwork.
@@ -95,20 +115,22 @@ class Car extends PositionComponent {
     body.render(canvas, size: size);
     final eyes = _eyesClosed;
     if (eyes != null && _blink > 0.5) eyes.render(canvas, size: size);
-    for (final x in CarArt.wheelCenters) {
+    for (final centre in _wheels) {
       final wheel = _wheel;
-      if (wheel == null) {
-        CarArt.wheel(canvas, Offset(x, 250), _wheelAngle);
-        continue;
-      }
       canvas.save();
-      canvas.translate(x, 250);
-      canvas.rotate(_wheelAngle);
-      wheel.render(
-        canvas,
-        size: Vector2.all(CarArt.wheelRadius * 2),
-        anchor: Anchor.center,
-      );
+      canvas.translate(centre.dx, centre.dy);
+      if (wheel == null) {
+        // The drawn tyre has a radius of 50.
+        canvas.scale(_wheelRadius / 50);
+        CarArt.wheel(canvas, Offset.zero, _wheelAngle);
+      } else {
+        canvas.rotate(_wheelAngle);
+        wheel.render(
+          canvas,
+          size: Vector2.all(_wheelRadius * 2),
+          anchor: Anchor.center,
+        );
+      }
       canvas.restore();
     }
   }

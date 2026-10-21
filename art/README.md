@@ -33,11 +33,27 @@ game picks them up on the next run. Anything missing keeps its drawn version.
 | `car_body.png` or `car_body_1.png` … | 1120 × 620 | The car without wheels; numbered versions are used in turn, one per round |
 | `car_wheel.png` | 208 × 208 | One wheel, centred; the game spins it |
 | `car_eyes_closed.png` | 1120 × 620 | Optional overlay shown while the car blinks |
+| `layout.json` | | Wheel centres and radius in game units, when the car's wheel arches differ from the template |
 | `mud_1.png` … | 68 × 68 | Mud blobs, scrubbed off first |
 | `foam_1.png` … | 68 × 68 | Foam bubbles, rinsed off second |
 | `drop_1.png` … | 68 × 68 | Water drops, dried off last |
 | `tool_sponge.png`, `tool_hose.png`, `tool_towel.png` | 260 × 220 | The tool under the child's finger, centred |
 | `sticker_1.png` … | 192 × 192 | Stickers on the shelf, any number |
+
+## Helpers
+
+- `python3 tool/cutout.py in.png out.png --size 1120x620 --pad-bottom 110`
+  removes a plain white background (as Gemini draws it) and fits the subject
+  to the canvas, sitting on its bottom edge plus the padding.
+- `python3 tool/blink_layer.py car_body.png car_eyes_closed.png --eye cx,cy,r
+  --eye cx,cy,r` paints over the open eyes and draws closed ones, giving the
+  blink overlay. `cx,cy,r` is each eye white in sprite pixels.
+
+`art/carwash/layout.json` example, for a body whose wheels sit elsewhere:
+
+```json
+{ "car": { "wheels": [[172.3, 252.3], [385.3, 252.3]], "wheelRadius": 48 } }
+```
 
 ## Animated characters (Rive)
 

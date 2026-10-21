@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame_texturepacker/flame_texturepacker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import 'rive_art.dart';
 
@@ -14,12 +17,17 @@ import 'rive_art.dart';
 /// Files, all made by `tool/pack_art.py` from `art/<game>/`:
 /// - `assets/images/<game>.atlas` + `.png`: sprites, drawn at 2x game units.
 /// - `assets/images/<game>_bg.png`: the full background, 2560 × 1440.
+/// - `assets/images/<game>_layout.json`: where things sit on the art, such
+///   as wheel centres, in game units.
 /// - `assets/rive/<game>_<name>.riv`: animated characters.
 class ArtBook {
-  ArtBook._(this.game, this._atlas, this.background);
+  ArtBook._(this.game, this._atlas, this.background, this.layout);
 
   /// A book with no art, so everything uses the drawn fallback.
-  ArtBook.empty(this.game) : _atlas = null, background = null;
+  ArtBook.empty(this.game)
+    : _atlas = null,
+      background = null,
+      layout = const {};
 
   static Future<ArtBook> load(String game, Images images) async {
     TexturePackerAtlas? atlas;
@@ -34,7 +42,16 @@ class ArtBook {
     } catch (_) {
       debugPrint('No background for $game yet, using drawn scenery.');
     }
-    return ArtBook._(game, atlas, background);
+    var layout = const <String, dynamic>{};
+    try {
+      final text = await rootBundle.loadString(
+        'assets/images/${game}_layout.json',
+      );
+      layout = jsonDecode(text) as Map<String, dynamic>;
+    } catch (_) {
+      // No layout: the art matches the drawn version's proportions.
+    }
+    return ArtBook._(game, atlas, background, layout);
   }
 
   final String game;
@@ -42,6 +59,9 @@ class ArtBook {
 
   /// The full-screen background, or null to draw the scenery.
   final Sprite? background;
+
+  /// Positions on the art from `layout.json`, keyed by piece name.
+  final Map<String, dynamic> layout;
 
   /// The sprite exported as `<name>.png`, if any.
   Sprite? sprite(String name) => _atlas?.findSpriteByName(name);
